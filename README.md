@@ -1,13 +1,13 @@
 # Control de rutas — prototipo
 
-Prototipo del sistema de ventas, fiados, inventario y gastos para el negocio de Rafael en Colombia: venta de alimentos puerta a puerta por rutas que se repiten cada semana. Hoy lo atienden Rafael y su esposa. Hecho con React, TypeScript, Vite y Tailwind CSS.
+Prototipo del sistema de ventas, fiados, inventario y gastos para el negocio de Rafael en Colombia: venta de alimentos puerta a puerta por rutas que se repiten cada semana. Hecho con React, TypeScript, Vite y Tailwind CSS.
 
 Los datos son de ejemplo (Bogotá, pesos colombianos) y se guardan solo en el navegador (localStorage). En la versión final se reemplazan por Supabase.
 
 ## Usuarios de demostración
 
-- **Rafael** y **Esposa de Rafael**: los dos con acceso completo. El nombre se cambia en Ajustes → Usuarios.
-- Si más adelante contratan a alguien, se crea un usuario con acceso "Solo su ruta".
+- **Rafael**: acceso completo a todo.
+- **Ayudante** (ejemplo): una persona que le colabora, con acceso solo a su ruta. En Ajustes → Usuarios se cambia el nombre, el acceso o se agregan más personas.
 
 ## Qué incluye
 

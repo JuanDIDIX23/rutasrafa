@@ -97,10 +97,10 @@ export function crearDatosDemo(): Datos {
     { id: 'r3', nombre: 'Ruta Suba', dia: 5, zona: 'Suba Rincón · Tibabuyes' },
   ]
 
-  // Negocio familiar: Rafael y su esposa, los dos con acceso completo.
+  // Rafael como administrador y, de ejemplo, una persona que le ayuda en la ruta Kennedy.
   const usuarios: Usuario[] = [
     { id: 'u0', nombre: 'Rafael', rol: 'admin' },
-    { id: 'u1', nombre: 'Esposa de Rafael', rol: 'admin' },
+    { id: 'u1', nombre: 'Ayudante', rol: 'vendedor', rutaId: 'r1' },
   ]
 
   const clientes: Cliente[] = NOMBRES.map((nombre, i) => ({
@@ -124,7 +124,7 @@ export function crearDatosDemo(): Datos {
     dia.setDate(hoy.getDate() - d)
 
     for (const ruta of rutas.filter((x) => x.dia === dia.getDay())) {
-      const quien = r() < 0.6 ? 'u0' : 'u1'
+      const quien = ruta.id === 'r1' && r() < 0.5 ? 'u1' : 'u0'
       let efectivo = 0
 
       clientes
@@ -160,7 +160,7 @@ export function crearDatosDemo(): Datos {
       const almuerzo = mil(24, 32)
       gastos.push(
         { id: id('g'), fecha: tarde.toISOString(), rutaId: ruta.id, usuarioId: quien, categoriaId: 'kg1', descripcion: 'Tanqueo de la moto', monto: gasolina, sync: true },
-        { id: id('g'), fecha: tarde.toISOString(), rutaId: ruta.id, usuarioId: quien, categoriaId: 'kg2', descripcion: 'Almuerzo de los dos', monto: almuerzo, sync: true },
+        { id: id('g'), fecha: tarde.toISOString(), rutaId: ruta.id, usuarioId: quien, categoriaId: 'kg2', descripcion: 'Almuerzo', monto: almuerzo, sync: true },
       )
       tarde.setHours(16, 10)
       cierres.push({ id: id('z'), fecha: tarde.toISOString(), dia: dayKey(dia), rutaId: ruta.id, usuarioId: quien, efectivo: efectivo - gasolina - almuerzo, sync: true })

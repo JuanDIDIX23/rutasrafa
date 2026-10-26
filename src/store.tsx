@@ -3,8 +3,8 @@ import type { Ajustes, Categoria, Cliente, Datos, Gasto, ItemVenta, Producto, Ru
 import { crearDatosDemo } from './seed'
 import { convertir, formatear, formatearCorto, hoyKey, redondear, uid } from './utils'
 
-const CLAVE_DATOS = 'rutas-demo-datos-v3'
-const CLAVE_SESION = 'rutas-demo-sesion-v3'
+const CLAVE_DATOS = 'rutas-demo-datos-v4'
+const CLAVE_SESION = 'rutas-demo-sesion-v4'
 
 function leer<T>(clave: string): T | null {
   try {
