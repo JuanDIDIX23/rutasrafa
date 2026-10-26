@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { MapPin, Minus, Phone, Plus, Search, Trash2 } from 'lucide-react'
 import { useStore } from '../store'
 import type { TipoVenta } from '../types'
-import { fechaCorta, hora, normalizar, numero, redondear } from '../utils'
+import { campoMoneda, fechaCorta, hora, monto, montosRapidos, normalizar, redondear } from '../utils'
 import { Boton, Campo, Confirmar, Entrada, Hoja, Segmentado, Selector, Vacio } from './ui'
 
 type Pestana = 'venta' | 'abono' | 'historial' | 'editar'
@@ -53,7 +53,7 @@ function Contenido({ clienteId, onCerrar, inicial }: { clienteId: string; onCerr
   const total = redondear(items.reduce((s, it) => s + it.cantidad * it.precio, 0))
   const unidades = items.reduce((s, it) => s + it.cantidad, 0)
   const cambiar = (id: string, delta: number, max: number) => setCarrito((c) => ({ ...c, [id]: Math.min(max, Math.max(0, (c[id] ?? 0) + delta)) }))
-  const montoAbono = numero(abono)
+  const montoAbono = monto(abono, base)
 
   const pie =
     pestana === 'venta' ? (
@@ -184,10 +184,10 @@ function Contenido({ clienteId, onCerrar, inicial }: { clienteId: string; onCerr
           ) : (
             <>
               <Campo etiqueta={`Valor recibido (${base})`}>
-                <Entrada type="number" inputMode="decimal" step="0.01" value={abono} onChange={(e) => setAbono(e.target.value)} placeholder="0.00" autoFocus />
+                <Entrada {...campoMoneda(base)} value={abono} onChange={(e) => setAbono(e.target.value)} autoFocus />
               </Campo>
               <div className="flex flex-wrap gap-2">
-                {[5, 10, 20].filter((v) => v < deuda).map((v) => (
+                {montosRapidos(base).filter((v) => v < deuda).map((v) => (
                   <button key={v} onClick={() => setAbono(String(v))} className="rounded-full border border-stone-300 bg-white px-3.5 py-1.5 text-sm font-medium">
                     {dineroBase(v)}
                   </button>

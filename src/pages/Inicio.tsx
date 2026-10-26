@@ -6,7 +6,7 @@ import { Card, Dato, Segmentado, Titulo } from '../components/ui'
 import { dayKey } from '../utils'
 
 export default function Inicio({ irA }: { irA: (pestana: string, rutaId?: string) => void }) {
-  const { datos, saldo, dinero } = useStore()
+  const { datos, saldo, dinero, dineroCorto } = useStore()
   const [periodo, setPeriodo] = useState<Periodo>('30')
   const [detalle, setDetalle] = useState<TipoDetalle | null>(null)
   const [ayuda, setAyuda] = useState(false)
@@ -117,9 +117,9 @@ export default function Inicio({ irA }: { irA: (pestana: string, rutaId?: string
             {r.porRuta.map((x) => (
               <tr key={x.ruta.id} onClick={() => irA('ruta', x.ruta.id)} className="cursor-pointer hover:bg-stone-50">
                 <td className="max-w-24 truncate px-4 py-3 font-semibold">{x.ruta.nombre.replace(/^Ruta /, '')}</td>
-                <td className="px-2 py-3 text-right tabular-nums">{dinero(x.vendido)}</td>
-                <td className="px-2 py-3 text-right tabular-nums text-brand-700">{dinero(x.recaudado)}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-amber-700">{dinero(x.cartera)}</td>
+                <td className="px-2 py-3 text-right tabular-nums">{dineroCorto(x.vendido)}</td>
+                <td className="px-2 py-3 text-right tabular-nums text-brand-700">{dineroCorto(x.recaudado)}</td>
+                <td className="px-4 py-3 text-right tabular-nums text-amber-700">{dineroCorto(x.cartera)}</td>
               </tr>
             ))}
           </tbody>

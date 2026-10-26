@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useStore, type TipoCategoria } from '../store'
 import type { Ruta, Usuario } from '../types'
-import { DIAS } from '../utils'
-import { Boton, Campo, Confirmar, Entrada, Hoja, Selector } from './ui'
+import { DIAS, ROLES } from '../utils'
+import { Boton, Campo, Confirmar, Entrada, Hoja, Segmentado, Selector } from './ui'
 
 /** Lista de categorías con crear, renombrar y eliminar. Se usa en Inventario, Gastos y Ajustes. */
 export function ListaCategorias({ tipo }: { tipo: TipoCategoria }) {
@@ -112,7 +112,7 @@ export function ListaCategorias({ tipo }: { tipo: TipoCategoria }) {
   )
 }
 
-/** Crear o editar una ruta: nombre, día de visita, zona y vendedor. */
+/** Crear o editar una ruta: nombre, día de visita, zona y, si hay ayudantes, quién la hace. */
 export function RutaHoja({ ruta, abierta, onCerrar }: { ruta: Ruta | null; abierta: boolean; onCerrar: () => void }) {
   if (!abierta) return null
   return <RutaForm key={ruta?.id ?? 'nueva'} ruta={ruta} onCerrar={onCerrar} />
@@ -159,7 +159,7 @@ function RutaForm({ ruta, onCerrar }: { ruta: Ruta | null; onCerrar: () => void 
       }
     >
       <div className="space-y-4">
-        <Campo etiqueta="Nombre"><Entrada value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej.: Ruta Norte" /></Campo>
+        <Campo etiqueta="Nombre"><Entrada value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Ej.: Ruta Kennedy" /></Campo>
         <Campo etiqueta="Día de visita (se repite cada semana)">
           <div className="grid grid-cols-7 gap-1.5">
             {DIAS.map((d, i) => (
@@ -174,10 +174,11 @@ function RutaForm({ ruta, onCerrar }: { ruta: Ruta | null; onCerrar: () => void 
             ))}
           </div>
         </Campo>
-        <Campo etiqueta="Zona o barrios"><Entrada value={form.zona} onChange={(e) => setForm({ ...form, zona: e.target.value })} placeholder="Ej.: Boyle Heights · East LA" /></Campo>
-        <Campo etiqueta="Vendedor asignado">
+        <Campo etiqueta="Zona o barrios"><Entrada value={form.zona} onChange={(e) => setForm({ ...form, zona: e.target.value })} placeholder="Ej.: Kennedy · Timiza" /></Campo>
+        {vendedores.length > 0 && (
+        <Campo etiqueta="Ayudante que la hace (opcional)">
           <Selector value={form.vendedorId} onChange={(e) => setForm({ ...form, vendedorId: e.target.value })}>
-            <option value="">Sin vendedor</option>
+            <option value="">Nadie en particular</option>
             {vendedores.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.nombre}
@@ -186,6 +187,7 @@ function RutaForm({ ruta, onCerrar }: { ruta: Ruta | null; onCerrar: () => void 
             ))}
           </Selector>
         </Campo>
+        )}
         {ruta && otras.length === 0 && <p className="text-sm text-stone-500">Es la única ruta, por eso no se puede eliminar.</p>}
       </div>
 
@@ -209,60 +211,81 @@ function RutaForm({ ruta, onCerrar }: { ruta: Ruta | null; onCerrar: () => void 
   )
 }
 
-/** Crear o editar un vendedor. */
-export function VendedorHoja({ vendedor, abierta, onCerrar }: { vendedor: Usuario | null; abierta: boolean; onCerrar: () => void }) {
+/** Crear o editar una persona que usa la app. */
+export function UsuarioHoja({ usuario, abierta, onCerrar }: { usuario: Usuario | null; abierta: boolean; onCerrar: () => void }) {
   if (!abierta) return null
-  return <VendedorForm key={vendedor?.id ?? 'nuevo'} vendedor={vendedor} onCerrar={onCerrar} />
+  return <UsuarioForm key={usuario?.id ?? 'nuevo'} usuario={usuario} onCerrar={onCerrar} />
 }
 
-function VendedorForm({ vendedor, onCerrar }: { vendedor: Usuario | null; onCerrar: () => void }) {
-  const { datos, guardarUsuario, eliminarUsuario } = useStore()
-  const [nombre, setNombre] = useState(vendedor?.nombre ?? '')
-  const [rutaId, setRutaId] = useState(vendedor?.rutaId ?? '')
+function UsuarioForm({ usuario, onCerrar }: { usuario: Usuario | null; onCerrar: () => void }) {
+  const { datos, usuario: actual, guardarUsuario, eliminarUsuario } = useStore()
+  const [nombre, setNombre] = useState(usuario?.nombre ?? '')
+  const [rol, setRol] = useState<Usuario['rol']>(usuario?.rol ?? 'admin')
+  const [rutaId, setRutaId] = useState(usuario?.rutaId ?? datos.rutas[0]?.id ?? '')
   const [borrar, setBorrar] = useState(false)
+  const admins = datos.usuarios.filter((u) => u.rol === 'admin').length
+  const esUltimoAdmin = usuario?.rol === 'admin' && admins === 1
+  const noSePuedeBorrar = usuario?.id === actual?.id || esUltimoAdmin
 
   return (
     <Hoja
       abierta
       onCerrar={onCerrar}
-      titulo={vendedor ? 'Editar vendedor' : 'Nuevo vendedor'}
+      titulo={usuario ? 'Editar usuario' : 'Nuevo usuario'}
       pie={
         <div className="flex gap-3">
-          {vendedor && (
-            <Boton variante="peligro" aria-label="Eliminar vendedor" onClick={() => setBorrar(true)}>
+          {usuario && (
+            <Boton variante="peligro" aria-label="Eliminar usuario" disabled={noSePuedeBorrar} onClick={() => setBorrar(true)}>
               <Trash2 size={18} />
             </Boton>
           )}
           <Boton
             className="flex-1"
-            disabled={!nombre.trim()}
+            disabled={!nombre.trim() || (rol === 'vendedor' && !rutaId) || (esUltimoAdmin && rol !== 'admin')}
             onClick={() => {
-              guardarUsuario({ id: vendedor?.id, nombre: nombre.trim(), rutaId: rutaId || undefined })
+              guardarUsuario({ id: usuario?.id, nombre: nombre.trim(), rol, rutaId: rol === 'vendedor' ? rutaId : undefined })
               onCerrar()
             }}
           >
-            {vendedor ? 'Guardar cambios' : 'Crear vendedor'}
+            {usuario ? 'Guardar cambios' : 'Crear usuario'}
           </Boton>
         </div>
       }
     >
       <div className="space-y-4">
         <Campo etiqueta="Nombre"><Entrada value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
-        <Campo etiqueta="Ruta">
-          <Selector value={rutaId} onChange={(e) => setRutaId(e.target.value)}>
-            <option value="">Sin ruta asignada</option>
-            {datos.rutas.map((r) => <option key={r.id} value={r.id}>{r.nombre} · {DIAS[r.dia]}</option>)}
-          </Selector>
+        <Campo etiqueta="Acceso">
+          <Segmentado
+            valor={rol}
+            onCambio={setRol}
+            opciones={[
+              { valor: 'admin', etiqueta: ROLES.admin },
+              { valor: 'vendedor', etiqueta: ROLES.vendedor },
+            ]}
+          />
         </Campo>
-        <p className="text-sm text-stone-500">En la versión final cada vendedor tendrá su propio usuario y contraseña.</p>
+        <p className="-mt-2 text-sm text-stone-500">
+          {rol === 'admin'
+            ? 'Ve y maneja todo: rutas, cartera, inventario, gastos y ajustes.'
+            : 'Para un ayudante: solo ve su ruta, su cartera, sus gastos y el cierre.'}
+        </p>
+        {rol === 'vendedor' && (
+          <Campo etiqueta="Ruta">
+            <Selector value={rutaId} onChange={(e) => setRutaId(e.target.value)}>
+              {datos.rutas.map((r) => <option key={r.id} value={r.id}>{r.nombre} · {DIAS[r.dia]}</option>)}
+            </Selector>
+          </Campo>
+        )}
+        {esUltimoAdmin && <p className="text-sm text-stone-500">Debe quedar al menos una persona con acceso completo.</p>}
+        {usuario?.id === actual?.id && <p className="text-sm text-stone-500">No puede eliminar el usuario con el que está dentro.</p>}
       </div>
       <Confirmar
         abierta={borrar}
         onCerrar={() => setBorrar(false)}
-        titulo={`¿Eliminar a ${vendedor?.nombre}?`}
-        texto="Ya no podrá ingresar a la app. Las ventas que registró se conservan en los reportes."
+        titulo={`¿Eliminar a ${usuario?.nombre}?`}
+        texto="Ya no podrá ingresar a la app. Lo que registró se conserva en los reportes."
         onConfirmar={() => {
-          if (vendedor) eliminarUsuario(vendedor.id)
+          if (usuario) eliminarUsuario(usuario.id)
           onCerrar()
         }}
       />

@@ -10,7 +10,7 @@ export default function Login() {
       <img src="/icon.svg" alt="" className="size-14 rounded-2xl" />
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight">{datos.ajustes.negocio}</h1>
       <p className="mt-2 text-[15px] leading-relaxed text-stone-600">
-        Control de ventas, fiados, inventario y gastos por rutas, desde el celular de cada vendedor.
+        Ventas, fiados, inventario y gastos de las rutas, desde el celular.
       </p>
 
       <p className="mb-3 mt-10 text-[13px] font-semibold uppercase tracking-wide text-stone-500">¿Quién va a ingresar?</p>
@@ -29,7 +29,7 @@ export default function Login() {
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{u.nombre}</span>
                   <span className="block text-sm text-stone-500">
-                    {u.rol === 'admin' ? 'Administrador · todas las rutas' : ruta ? `Vendedor · ${ruta.nombre} (${DIAS[ruta.dia].toLowerCase()})` : 'Vendedor · sin ruta asignada'}
+                    {u.rol === 'admin' ? 'Acceso completo · todas las rutas' : ruta ? `${ruta.nombre} (${DIAS[ruta.dia].toLowerCase()})` : 'Sin ruta asignada'}
                   </span>
                 </span>
                 <ChevronRight size={18} className="text-stone-400" />

@@ -2,10 +2,10 @@ import { useState, type ReactNode } from 'react'
 import { ChevronRight, Plus, RotateCcw } from 'lucide-react'
 import { useStore } from '../store'
 import type { Ruta, Usuario } from '../types'
-import { ListaCategorias, RutaHoja, VendedorHoja } from '../components/Catalogos'
+import { ListaCategorias, RutaHoja, UsuarioHoja } from '../components/Catalogos'
 import { AjustesMoneda } from '../components/Monedas'
 import { Boton, Card, Confirmar, Entrada, Hoja, Titulo } from '../components/ui'
-import { DIAS, iniciales } from '../utils'
+import { DIAS, iniciales, ROLES } from '../utils'
 
 function Fila({ titulo, sub, onClick, izquierda }: { titulo: string; sub?: string; onClick: () => void; izquierda?: ReactNode }) {
   return (
@@ -25,10 +25,9 @@ function Fila({ titulo, sub, onClick, izquierda }: { titulo: string; sub?: strin
 export default function Ajustes() {
   const { datos, ajustar, reiniciar } = useStore()
   const [ruta, setRuta] = useState<Ruta | 'nueva' | null>(null)
-  const [vendedor, setVendedor] = useState<Usuario | 'nuevo' | null>(null)
+  const [persona, setPersona] = useState<Usuario | 'nuevo' | null>(null)
   const [categorias, setCategorias] = useState<'producto' | 'gasto' | null>(null)
   const [reset, setReset] = useState(false)
-  const vendedores = datos.usuarios.filter((u) => u.rol === 'vendedor')
   const nombreRuta = (id?: string) => datos.rutas.find((r) => r.id === id)?.nombre
 
   return (
@@ -53,7 +52,7 @@ export default function Ajustes() {
             <Fila
               key={r.id}
               titulo={r.nombre}
-              sub={`${DIAS[r.dia]} · ${datos.clientes.filter((c) => c.rutaId === r.id).length} clientes · ${vendedores.find((v) => v.rutaId === r.id)?.nombre ?? 'sin vendedor'}`}
+              sub={`${DIAS[r.dia]} · ${datos.clientes.filter((c) => c.rutaId === r.id).length} clientes${r.zona ? ` · ${r.zona}` : ''}`}
               onClick={() => setRuta(r)}
             />
           ))}
@@ -61,23 +60,23 @@ export default function Ajustes() {
         </ul>
       </Card>
 
-      <Titulo accion={<button onClick={() => setVendedor('nuevo')} className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700"><Plus size={16} />Nuevo</button>}>
-        Vendedores · {vendedores.length}
+      <Titulo accion={<button onClick={() => setPersona('nuevo')} className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700"><Plus size={16} />Nuevo</button>}>
+        Usuarios · {datos.usuarios.length}
       </Titulo>
       <Card>
         <ul className="divide-y divide-stone-100">
-          {vendedores.map((v) => (
+          {datos.usuarios.map((u) => (
             <Fila
-              key={v.id}
-              titulo={v.nombre}
-              sub={nombreRuta(v.rutaId) ?? 'Sin ruta asignada'}
-              onClick={() => setVendedor(v)}
-              izquierda={<span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-bold text-brand-800">{iniciales(v.nombre)}</span>}
+              key={u.id}
+              titulo={u.nombre}
+              sub={u.rol === 'admin' ? ROLES.admin : `${ROLES.vendedor} · ${nombreRuta(u.rutaId) ?? 'sin ruta'}`}
+              onClick={() => setPersona(u)}
+              izquierda={<span className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-bold text-brand-800">{iniciales(u.nombre)}</span>}
             />
           ))}
-          {vendedores.length === 0 && <li className="px-4 py-4 text-sm text-stone-500">No hay vendedores.</li>}
         </ul>
       </Card>
+      <p className="mt-2 text-xs text-stone-500">Si más adelante contratan a alguien, créelo con acceso “{ROLES.vendedor}”.</p>
 
       <Titulo>Categorías</Titulo>
       <Card>
@@ -94,7 +93,7 @@ export default function Ajustes() {
       <p className="mt-3 text-center text-xs text-stone-400">Prototipo de demostración · los datos se guardan solo en este navegador</p>
 
       <RutaHoja ruta={ruta === 'nueva' ? null : ruta} abierta={!!ruta} onCerrar={() => setRuta(null)} />
-      <VendedorHoja vendedor={vendedor === 'nuevo' ? null : vendedor} abierta={!!vendedor} onCerrar={() => setVendedor(null)} />
+      <UsuarioHoja usuario={persona === 'nuevo' ? null : persona} abierta={!!persona} onCerrar={() => setPersona(null)} />
       <Hoja
         abierta={!!categorias}
         onCerrar={() => setCategorias(null)}

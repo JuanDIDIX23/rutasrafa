@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowDownUp, Check, RefreshCw, X } from 'lucide-react'
+import { ArrowDownUp, RefreshCw, X } from 'lucide-react'
 import { useStore } from '../store'
 import { convertir, formatear, MONEDAS, numero } from '../utils'
 import { Boton, Campo, Entrada, Hoja, Selector } from './ui'
@@ -10,7 +10,7 @@ export const nombreMoneda = (c: string) => MONEDAS[c] ?? c
 export function Convertidor() {
   const { datos } = useStore()
   const { monedas, tasas, monedaBase } = datos.ajustes
-  const [monto, setMonto] = useState('100')
+  const [monto, setMonto] = useState(monedaBase === 'COP' ? '100000' : '100')
   const [de, setDe] = useState(monedaBase)
   const [a, setA] = useState(monedas.find((m) => m !== monedaBase) ?? monedaBase)
   const resultado = convertir(numero(monto), de, a, tasas)
@@ -43,55 +43,10 @@ export function Convertidor() {
       </div>
       {de !== a && (
         <p className="mt-2 text-center text-xs text-stone-500">
-          1 {de} = {convertir(1, de, a, tasas).toLocaleString('en-US', { maximumFractionDigits: 4 })} {a}
+          1 {de} = {convertir(1, de, a, tasas).toLocaleString('es-CO', { maximumFractionDigits: 4 })} {a}
         </p>
       )}
     </div>
-  )
-}
-
-/** Hoja que se abre desde la moneda del encabezado: elegir en qué moneda ver los valores. */
-export function MonedaHoja({ abierta, onCerrar, onAjustes }: { abierta: boolean; onCerrar: () => void; onAjustes?: () => void }) {
-  const { datos, ajustar } = useStore()
-  const { monedas, monedaVista, monedaBase, tasas, tasasFuente, tasasFecha } = datos.ajustes
-
-  return (
-    <Hoja abierta={abierta} onCerrar={onCerrar} titulo="Moneda" subtitulo={`Los precios y pagos se registran en ${monedaBase}`}>
-      <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-stone-500">Ver los valores en</p>
-      <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/80">
-        {monedas.map((m) => (
-          <li key={m}>
-            <button
-              onClick={() => {
-                ajustar({ monedaVista: m })
-                onCerrar()
-              }}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-stone-50"
-            >
-              <span className="w-12 font-bold">{m}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px]">{nombreMoneda(m)}</span>
-                {m !== monedaBase && <span className="block text-xs text-stone-500">1 {monedaBase} = {convertir(1, monedaBase, m, tasas).toLocaleString('en-US', { maximumFractionDigits: 2 })} {m}</span>}
-              </span>
-              {m === monedaVista && <Check size={18} className="text-brand-700" />}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2 text-xs text-stone-500">
-        Tasas {tasasFuente}
-        {tasasFecha ? ` · ${new Date(tasasFecha).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
-      </p>
-
-      <p className="mb-2 mt-6 text-[13px] font-semibold uppercase tracking-wide text-stone-500">Convertidor</p>
-      <Convertidor />
-
-      {onAjustes && (
-        <Boton variante="suave" className="mt-6 w-full" onClick={onAjustes}>
-          Agregar monedas o cambiar tasas
-        </Boton>
-      )}
-    </Hoja>
   )
 }
 
@@ -173,14 +128,14 @@ export function AjustesMoneda() {
         </ul>
         <p className="mt-2 text-xs text-stone-500">
           Tasas {tasasFuente}
-          {tasasFecha ? ` · actualizadas ${new Date(tasasFecha).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}. Puede escribir una tasa a mano si prefiere usar la de su casa de cambio.
+          {tasasFecha ? ` · actualizadas ${new Date(tasasFecha).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}. Puede escribir una tasa a mano si prefiere usar la de su casa de cambio.
         </p>
       </div>
 
       <div>
         <p className="mb-1.5 text-[13px] font-medium text-stone-600">Agregar moneda</p>
         <div className="flex gap-2">
-          <Entrada list="codigos-moneda" value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Código, ej.: DOP" maxLength={3} className="uppercase" />
+          <Entrada list="codigos-moneda" value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Código, ej.: EUR" maxLength={3} className="uppercase" />
           <datalist id="codigos-moneda">{sugerencias.map((c) => <option key={c} value={c}>{nombreMoneda(c)}</option>)}</datalist>
           <Boton
             variante="suave"
@@ -222,7 +177,7 @@ export function AjustesMoneda() {
         }
       >
         <p className="text-[15px] leading-relaxed text-stone-600">
-          Los precios, abonos y gastos ya guardados no se convierten: un precio de 2.49 pasará a leerse como 2.49 {cambioBase}. Úselo solo si el negocio va a registrar todo en esa moneda. Para solo ver los valores en otra moneda, use “Mostrar valores en”.
+          Los precios, abonos y gastos ya guardados no se convierten: un precio de 2.800 pasará a leerse como 2.800 {cambioBase}. Úselo solo si el negocio va a registrar todo en esa moneda. Para solo ver los valores en otra moneda, use “Mostrar valores en”.
         </p>
       </Hoja>
     </div>

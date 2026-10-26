@@ -4,7 +4,7 @@ import { useStore } from '../store'
 import type { Gasto } from '../types'
 import { ListaCategorias } from '../components/Catalogos'
 import { Boton, Campo, Card, Chips, Confirmar, Entrada, Hoja, Selector, Titulo, Vacio } from '../components/ui'
-import { dayKey, fechaCorta, haceDias, numero } from '../utils'
+import { campoMoneda, dayKey, fechaCorta, haceDias, monto as leerMonto } from '../utils'
 
 export default function Gastos() {
   const { datos, usuario, dinero } = useStore()
@@ -100,7 +100,7 @@ function FormGasto({ gasto, onListo }: { gasto?: Gasto; onListo?: () => void }) 
   const nombreCat = datos.categoriasGasto.find((c) => c.id === categoriaId)?.nombre ?? 'Gasto'
 
   const guardar = () => {
-    guardarGasto({ id: gasto?.id, categoriaId, descripcion: descripcion.trim() || nombreCat, monto: numero(monto), rutaId: rutaId === 'general' ? null : rutaId })
+    guardarGasto({ id: gasto?.id, categoriaId, descripcion: descripcion.trim() || nombreCat, monto: leerMonto(monto, base), rutaId: rutaId === 'general' ? null : rutaId })
     if (!gasto) {
       setMonto('')
       setDescripcion('')
@@ -113,7 +113,7 @@ function FormGasto({ gasto, onListo }: { gasto?: Gasto; onListo?: () => void }) 
       <Chips valor={categoriaId} onCambio={setCategoriaId} opciones={datos.categoriasGasto.map((c) => ({ valor: c.id, etiqueta: c.nombre }))} />
       <div className="grid grid-cols-2 gap-3">
         <Campo etiqueta={`Valor (${base})`}>
-          <Entrada type="number" inputMode="decimal" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="0.00" />
+          <Entrada {...campoMoneda(base)} value={monto} onChange={(e) => setMonto(e.target.value)} />
         </Campo>
         {esAdmin ? (
           <Campo etiqueta="Ruta">
@@ -137,7 +137,7 @@ function FormGasto({ gasto, onListo }: { gasto?: Gasto; onListo?: () => void }) 
             <Trash2 size={18} />
           </Boton>
         )}
-        <Boton className="flex-1" disabled={!(numero(monto) > 0) || !categoriaId} onClick={guardar}>
+        <Boton className="flex-1" disabled={!(leerMonto(monto, base) > 0) || !categoriaId} onClick={guardar}>
           {gasto ? 'Guardar cambios' : 'Guardar gasto'}
         </Boton>
       </div>

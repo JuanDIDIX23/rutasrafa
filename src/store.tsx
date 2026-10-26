@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Ajustes, Categoria, Cliente, Datos, Gasto, ItemVenta, Producto, Ruta, TipoVenta, Usuario } from './types'
 import { crearDatosDemo } from './seed'
-import { convertir, formatear, hoyKey, redondear, uid } from './utils'
+import { convertir, formatear, formatearCorto, hoyKey, redondear, uid } from './utils'
 
-const CLAVE_DATOS = 'rutas-demo-datos-v2'
-const CLAVE_SESION = 'rutas-demo-sesion-v2'
+const CLAVE_DATOS = 'rutas-demo-datos-v3'
+const CLAVE_SESION = 'rutas-demo-sesion-v3'
 
 function leer<T>(clave: string): T | null {
   try {
@@ -40,6 +40,8 @@ interface Store {
   aviso: string | null
   /** Valor en la moneda que se está viendo (convierte desde la moneda del negocio). */
   dinero: (n: number) => string
+  /** Igual que dinero, abreviado para tablas: $ 1,38 M. */
+  dineroCorto: (n: number) => string
   /** Valor en la moneda del negocio, sin convertir. */
   dineroBase: (n: number) => string
   saldo: (clienteId: string) => number
@@ -65,7 +67,7 @@ interface Store {
   eliminarCliente: (id: string) => void
   guardarRuta: (r: Omit<Ruta, 'id'> & { id?: string }, vendedorId: string | null) => void
   eliminarRuta: (id: string, moverA: string) => void
-  guardarUsuario: (u: Omit<Usuario, 'id' | 'rol'> & { id?: string }) => void
+  guardarUsuario: (u: Omit<Usuario, 'id'> & { id?: string }) => void
   eliminarUsuario: (id: string) => void
   // Ajustes
   ajustar: (cambios: Partial<Ajustes>) => void
@@ -139,6 +141,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const { monedaBase, monedaVista, tasas } = datos.ajustes
   const dinero = useCallback((n: number) => formatear(convertir(n, monedaBase, monedaVista, tasas), monedaVista), [monedaBase, monedaVista, tasas])
+  const dineroCorto = useCallback((n: number) => formatearCorto(convertir(n, monedaBase, monedaVista, tasas), monedaVista), [monedaBase, monedaVista, tasas])
   const dineroBase = useCallback((n: number) => formatear(n, monedaBase), [monedaBase])
   const saldo = useCallback((id: string) => Math.max(0, redondear(saldos.get(id) ?? 0)), [saldos])
   const ahora = () => new Date().toISOString()
@@ -158,6 +161,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     simularSinSenal: sesion.simularSinSenal,
     aviso,
     dinero,
+    dineroCorto,
     dineroBase,
     saldo,
     avisar,
@@ -219,7 +223,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     cerrarRuta: (rutaId, efectivo) =>
       mutar(
         (d) => ({ ...d, cierres: [...d.cierres, { id: uid(), fecha: ahora(), dia: hoyKey(), rutaId, usuarioId: quien, efectivo, sync: enLinea }] }),
-        usuario?.rol === 'vendedor' ? 'Ruta cerrada y enviada a Rafael' : 'Ruta cerrada',
+        'Ruta cerrada',
       ),
 
     guardarProducto: ({ id, ...p }) =>
@@ -303,11 +307,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         (d) =>
           id
             ? { ...d, usuarios: d.usuarios.map((x) => (x.id === id ? { ...x, ...u } : x)) }
-            : { ...d, usuarios: [...d.usuarios, { ...u, id: uid(), rol: 'vendedor' }] },
-        id ? 'Vendedor actualizado' : 'Vendedor creado',
+            : { ...d, usuarios: [...d.usuarios, { ...u, id: uid() }] },
+        id ? 'Usuario actualizado' : 'Usuario creado',
       ),
 
-    eliminarUsuario: (id) => mutar((d) => ({ ...d, usuarios: d.usuarios.filter((u) => u.id !== id) }), 'Vendedor eliminado'),
+    eliminarUsuario: (id) => mutar((d) => ({ ...d, usuarios: d.usuarios.filter((u) => u.id !== id) }), 'Usuario eliminado'),
 
     ajustar: (cambios) => setDatos((d) => ({ ...d, ajustes: { ...d.ajustes, ...cambios } })),
 

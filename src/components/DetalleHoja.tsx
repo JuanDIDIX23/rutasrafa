@@ -109,7 +109,7 @@ function Contenido({ tipo, periodo }: { tipo: TipoDetalle; periodo: Periodo }) {
         grupo: porRuta([...contadas.map((v) => ({ rutaId: v.rutaId, valor: v.total })), ...abonos.map((a) => ({ rutaId: a.rutaId, valor: a.monto }))]),
         lista: ordenar([...contadas.map(deVenta), ...abonos.map(deAbono)]),
         listaTitulo: 'Entradas de dinero',
-        nota: 'Es el efectivo que recibieron los vendedores.',
+        nota: 'Es el efectivo que entró en las rutas.',
       }
     }
 

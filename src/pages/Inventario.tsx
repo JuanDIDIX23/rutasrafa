@@ -4,9 +4,9 @@ import { useStore } from '../store'
 import type { Producto } from '../types'
 import { ListaCategorias } from '../components/Catalogos'
 import { Boton, Campo, Card, Chips, Confirmar, Entrada, Hoja, Selector, Vacio } from '../components/ui'
-import { normalizar, numero } from '../utils'
+import { campoMoneda, monto, normalizar, numero } from '../utils'
 
-const UNIDADES = ['unidad', 'paquete', 'bolsa', 'caja', 'lata', 'botella', 'frasco', 'docena', 'libra', 'galón']
+const UNIDADES = ['unidad', 'paquete', 'bolsa', 'caja', 'lata', 'botella', 'frasco', 'docena', 'libra', 'kilo', 'litro', 'canasta']
 
 export default function Inventario() {
   const { datos, dinero, usuario } = useStore()
@@ -121,8 +121,8 @@ function ProductoForm({ producto, onCerrar, onCategorias }: { producto: Producto
     minimo: producto ? String(producto.minimo) : '10',
   })
   const [borrar, setBorrar] = useState(false)
-  const precio = numero(f.precio)
-  const costo = numero(f.costo)
+  const precio = monto(f.precio, base)
+  const costo = monto(f.costo, base)
   const margen = precio > 0 && costo > 0 ? Math.round(((precio - costo) / precio) * 100) : null
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value })
   const unidades = UNIDADES.includes(f.unidad) ? UNIDADES : [...UNIDADES, f.unidad]
@@ -162,7 +162,7 @@ function ProductoForm({ producto, onCerrar, onCategorias }: { producto: Producto
       }
     >
       <div className="space-y-4">
-        <Campo etiqueta="Nombre"><Entrada value={f.nombre} onChange={set('nombre')} placeholder="Ej.: Arroz 2 lb" /></Campo>
+        <Campo etiqueta="Nombre"><Entrada value={f.nombre} onChange={set('nombre')} placeholder="Ej.: Arroz 500 g" /></Campo>
         <div className="grid grid-cols-2 gap-3">
           <Campo etiqueta="Categoría">
             <Selector value={f.categoriaId} onChange={set('categoriaId')}>
@@ -178,10 +178,10 @@ function ProductoForm({ producto, onCerrar, onCategorias }: { producto: Producto
         <button type="button" onClick={onCategorias} className="-mt-2 text-sm font-semibold text-brand-700">Crear o editar categorías</button>
         <div className="grid grid-cols-2 gap-3">
           <Campo etiqueta={`Precio de venta (${base})`}>
-            <Entrada type="number" inputMode="decimal" step="0.01" value={f.precio} onChange={set('precio')} placeholder="0.00" />
+            <Entrada {...campoMoneda(base)} value={f.precio} onChange={set('precio')} />
           </Campo>
           <Campo etiqueta={`Costo (${base}, opcional)`}>
-            <Entrada type="number" inputMode="decimal" step="0.01" value={f.costo} onChange={set('costo')} placeholder="0.00" />
+            <Entrada {...campoMoneda(base)} value={f.costo} onChange={set('costo')} />
           </Campo>
         </div>
         {margen !== null && (

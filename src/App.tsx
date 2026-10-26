@@ -9,7 +9,6 @@ import Inventario from './pages/Inventario'
 import Gastos from './pages/Gastos'
 import Cierre from './pages/Cierre'
 import Ajustes from './pages/Ajustes'
-import { MonedaHoja } from './components/Monedas'
 import { Boton, Hoja, Vacio } from './components/ui'
 import { fechaLarga, iniciales } from './utils'
 
@@ -61,12 +60,10 @@ function Principal() {
   const [rutaInicial, setRutaInicial] = useState<string | undefined>()
   const [vista, setVista] = useState(0) // fuerza a la pestaña Rutas a tomar la ruta pedida
   const [menu, setMenu] = useState(false)
-  const [moneda, setMoneda] = useState(false)
   const enAjustes = actual === 'ajustes'
   const pestana = pestanas.find((p) => p.id === actual)
   const titulo = enAjustes ? 'Ajustes' : pestana?.titulo ?? ''
   const ruta = datos.rutas.find((r) => r.id === usuario!.rutaId)
-  const { monedaVista } = datos.ajustes
 
   const irA = (id: string, rutaId?: string) => {
     setActual(id)
@@ -88,13 +85,6 @@ function Principal() {
             <p className="truncate text-xs text-stone-500 first-letter:uppercase">{enAjustes ? datos.ajustes.negocio : fechaLarga(new Date())}</p>
             <h1 className="truncate text-xl font-bold tracking-tight">{titulo}</h1>
           </div>
-          <button
-            onClick={() => setMoneda(true)}
-            aria-label={`Moneda: ${monedaVista}`}
-            className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-stone-700 ring-1 ring-stone-200"
-          >
-            {monedaVista}
-          </button>
           <span
             title={enLinea ? 'En línea' : 'Sin señal'}
             className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${enLinea ? 'bg-brand-50 text-brand-800' : 'bg-amber-100 text-amber-800'}`}
@@ -139,20 +129,7 @@ function Principal() {
         </ul>
       </nav>
 
-      <MonedaHoja
-        abierta={moneda}
-        onCerrar={() => setMoneda(false)}
-        onAjustes={
-          esAdmin
-            ? () => {
-                setMoneda(false)
-                irA('ajustes')
-              }
-            : undefined
-        }
-      />
-
-      <Hoja abierta={menu} onCerrar={() => setMenu(false)} titulo={usuario!.nombre} subtitulo={esAdmin ? 'Administrador' : `Vendedor · ${ruta?.nombre ?? 'sin ruta'}`}>
+      <Hoja abierta={menu} onCerrar={() => setMenu(false)} titulo={usuario!.nombre} subtitulo={esAdmin ? 'Acceso completo' : `Solo su ruta · ${ruta?.nombre ?? 'sin ruta'}`}>
         <div className="space-y-3">
           {esAdmin && (
             <Boton
@@ -163,7 +140,7 @@ function Principal() {
                 irA('ajustes')
               }}
             >
-              <Settings size={18} /> Ajustes: rutas, vendedores, categorías y moneda
+              <Settings size={18} /> Ajustes: rutas, usuarios, categorías y moneda
             </Boton>
           )}
           <label className="flex items-center justify-between gap-4 rounded-2xl bg-white p-4 ring-1 ring-stone-200/80">

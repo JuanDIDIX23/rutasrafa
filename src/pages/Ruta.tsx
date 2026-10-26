@@ -22,7 +22,7 @@ export default function Ruta({ rutaInicial }: { rutaInicial?: string }) {
   // Si la ruta elegida se eliminó, se toma la primera disponible.
   const ruta = datos.rutas.find((r) => r.id === elegida) ?? (esAdmin ? datos.rutas[0] : undefined)
   const rutaId = ruta?.id ?? ''
-  const vendedor = datos.usuarios.find((u) => u.rutaId === rutaId)
+  const vendedor = datos.usuarios.find((u) => u.rol === 'vendedor' && u.rutaId === rutaId)
   const hoy = hoyKey()
 
   const { atendidos, vendidoHoy } = useMemo(() => {
@@ -106,7 +106,7 @@ export default function Ruta({ rutaInicial }: { rutaInicial?: string }) {
               )}
             </h2>
             {ruta.zona && <p className="text-sm text-stone-500">{ruta.zona}</p>}
-            {esAdmin && <p className="text-sm text-stone-500">Vendedor: {vendedor?.nombre ?? 'sin asignar'}</p>}
+            {esAdmin && vendedor && <p className="text-sm text-stone-500">La hace: {vendedor.nombre}</p>}
           </div>
           <div className="shrink-0 text-right">
             <p className="whitespace-nowrap text-xs text-stone-500">Vendido hoy</p>
