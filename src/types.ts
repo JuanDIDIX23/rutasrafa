@@ -15,12 +15,20 @@ export interface Ruta {
   zona: string
 }
 
+export interface Categoria {
+  id: string
+  nombre: string
+}
+
 export interface Producto {
   id: string
   nombre: string
-  categoria: string
+  categoriaId: string
   precio: number
+  costo: number // 0 si no se registra
+  unidad: string
   stock: number
+  minimo: number
 }
 
 export interface Cliente {
@@ -34,6 +42,7 @@ export interface Cliente {
 
 export interface ItemVenta {
   productoId: string
+  nombre: string // copia del nombre al momento de la venta
   cantidad: number
   precio: number
 }
@@ -65,7 +74,7 @@ export interface Gasto {
   fecha: string
   rutaId: string | null
   usuarioId: string
-  categoria: string
+  categoriaId: string
   descripcion: string
   monto: number
   sync: boolean
@@ -81,7 +90,20 @@ export interface Cierre {
   sync: boolean
 }
 
+export interface Ajustes {
+  negocio: string
+  monedaBase: string // moneda en la que se registran precios y pagos
+  monedaVista: string // moneda en la que se muestran los valores
+  monedas: string[] // monedas disponibles en el selector
+  tasas: Record<string, number> // unidades por 1 USD
+  tasasFecha: string | null
+  tasasFuente: 'aproximadas' | 'en línea' | 'manual'
+}
+
 export interface Datos {
+  ajustes: Ajustes
+  categorias: Categoria[]
+  categoriasGasto: Categoria[]
   productos: Producto[]
   rutas: Ruta[]
   clientes: Cliente[]

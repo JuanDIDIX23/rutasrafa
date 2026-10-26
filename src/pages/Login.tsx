@@ -8,9 +8,9 @@ export default function Login() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 pb-8 pt-14">
       <img src="/icon.svg" alt="" className="size-14 rounded-2xl" />
-      <h1 className="mt-6 text-3xl font-extrabold tracking-tight">Control de rutas</h1>
+      <h1 className="mt-6 text-3xl font-extrabold tracking-tight">{datos.ajustes.negocio}</h1>
       <p className="mt-2 text-[15px] leading-relaxed text-stone-600">
-        Ventas, fiados, inventario y gastos del negocio en un solo lugar, desde el celular de cada vendedor.
+        Control de ventas, fiados, inventario y gastos por rutas, desde el celular de cada vendedor.
       </p>
 
       <p className="mb-3 mt-10 text-[13px] font-semibold uppercase tracking-wide text-stone-500">¿Quién va a ingresar?</p>
@@ -29,7 +29,7 @@ export default function Login() {
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{u.nombre}</span>
                   <span className="block text-sm text-stone-500">
-                    {u.rol === 'admin' ? 'Administrador · todas las rutas' : `Vendedor · ${ruta?.nombre} (${DIAS[ruta?.dia ?? 0].toLowerCase()})`}
+                    {u.rol === 'admin' ? 'Administrador · todas las rutas' : ruta ? `Vendedor · ${ruta.nombre} (${DIAS[ruta.dia].toLowerCase()})` : 'Vendedor · sin ruta asignada'}
                   </span>
                 </span>
                 <ChevronRight size={18} className="text-stone-400" />

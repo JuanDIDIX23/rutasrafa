@@ -3,12 +3,12 @@ import { Search } from 'lucide-react'
 import { useStore } from '../store'
 import ClienteHoja from '../components/ClienteHoja'
 import { Card, Chips, Entrada, Titulo, Vacio } from '../components/ui'
-import { cop, fechaCorta, normalizar } from '../utils'
+import { fechaCorta, normalizar } from '../utils'
 
 export default function Cartera() {
-  const { datos, usuario, saldo } = useStore()
+  const { datos, usuario, saldo, dinero } = useStore()
   const esAdmin = usuario!.rol === 'admin'
-  const [rutaId, setRutaId] = useState<string>(esAdmin ? 'todas' : usuario!.rutaId!)
+  const [rutaId, setRutaId] = useState<string>(esAdmin ? 'todas' : usuario!.rutaId ?? '')
   const [busqueda, setBusqueda] = useState('')
   const [clienteSel, setClienteSel] = useState<string | null>(null)
 
@@ -39,7 +39,7 @@ export default function Cartera() {
 
       <Card className="p-5">
         <p className="text-sm font-medium text-stone-500">Total por cobrar</p>
-        <p className="mt-1 text-3xl font-extrabold tracking-tight text-amber-600">{cop(total)}</p>
+        <p className="mt-1 text-3xl font-extrabold tracking-tight text-amber-600">{dinero(total)}</p>
         <p className="mt-1 text-sm text-stone-500">{deudores.length} clientes con saldo pendiente</p>
       </Card>
 
@@ -64,7 +64,7 @@ export default function Cartera() {
                       {c.ultimo ? `Último abono ${fechaCorta(c.ultimo)}` : 'Sin abonos registrados'}
                     </span>
                   </span>
-                  <span className="shrink-0 font-bold text-amber-700">{cop(c.deuda)}</span>
+                  <span className="shrink-0 font-bold text-amber-700">{dinero(c.deuda)}</span>
                 </button>
               </li>
             ))}

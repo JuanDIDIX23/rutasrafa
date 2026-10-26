@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { Cliente, Datos, ItemVenta, Producto, TipoVenta, Usuario } from './types'
+import type { Ajustes, Categoria, Cliente, Datos, Gasto, ItemVenta, Producto, Ruta, TipoVenta, Usuario } from './types'
 import { crearDatosDemo } from './seed'
-import { hoyKey, uid } from './utils'
+import { convertir, formatear, hoyKey, redondear, uid } from './utils'
 
-const CLAVE_DATOS = 'rutas-demo-datos-v1'
-const CLAVE_SESION = 'rutas-demo-sesion-v1'
+const CLAVE_DATOS = 'rutas-demo-datos-v2'
+const CLAVE_SESION = 'rutas-demo-sesion-v2'
 
 function leer<T>(clave: string): T | null {
   try {
@@ -28,6 +28,8 @@ interface Sesion {
   simularSinSenal: boolean
 }
 
+export type TipoCategoria = 'producto' | 'gasto'
+
 interface Store {
   datos: Datos
   usuario: Usuario | null
@@ -36,19 +38,38 @@ interface Store {
   sincronizando: boolean
   simularSinSenal: boolean
   aviso: string | null
+  /** Valor en la moneda que se está viendo (convierte desde la moneda del negocio). */
+  dinero: (n: number) => string
+  /** Valor en la moneda del negocio, sin convertir. */
+  dineroBase: (n: number) => string
   saldo: (clienteId: string) => number
   entrar: (usuarioId: string) => void
   salir: () => void
   setSimularSinSenal: (v: boolean) => void
   avisar: (msg: string) => void
+  // Movimientos
   registrarVenta: (clienteId: string, items: ItemVenta[], tipo: TipoVenta) => void
+  anularVenta: (id: string) => void
   registrarAbono: (clienteId: string, monto: number) => void
-  registrarGasto: (g: { categoria: string; descripcion: string; monto: number; rutaId: string | null }) => void
-  entradaInventario: (productoId: string, cantidad: number) => void
-  guardarProducto: (p: Producto) => void
-  agregarProducto: (p: Omit<Producto, 'id'>) => void
-  agregarCliente: (c: Omit<Cliente, 'id' | 'saldoInicial'>) => void
+  eliminarAbono: (id: string) => void
+  guardarGasto: (g: Omit<Gasto, 'id' | 'fecha' | 'usuarioId' | 'sync'> & { id?: string }) => void
+  eliminarGasto: (id: string) => void
   cerrarRuta: (rutaId: string, efectivo: number) => void
+  // Catálogos
+  guardarProducto: (p: Omit<Producto, 'id'> & { id?: string }) => void
+  eliminarProducto: (id: string) => void
+  entradaInventario: (productoId: string, cantidad: number) => void
+  guardarCategoria: (tipo: TipoCategoria, c: { id?: string; nombre: string }) => string
+  eliminarCategoria: (tipo: TipoCategoria, id: string, moverA: string) => void
+  guardarCliente: (c: Omit<Cliente, 'id' | 'saldoInicial'> & { id?: string }) => void
+  eliminarCliente: (id: string) => void
+  guardarRuta: (r: Omit<Ruta, 'id'> & { id?: string }, vendedorId: string | null) => void
+  eliminarRuta: (id: string, moverA: string) => void
+  guardarUsuario: (u: Omit<Usuario, 'id' | 'rol'> & { id?: string }) => void
+  eliminarUsuario: (id: string) => void
+  // Ajustes
+  ajustar: (cambios: Partial<Ajustes>) => void
+  actualizarTasas: (silencioso?: boolean) => Promise<boolean>
   reiniciar: () => void
 }
 
@@ -80,8 +101,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const usuario = datos.usuarios.find((u) => u.id === sesion.usuarioId) ?? null
 
   const pendientes = useMemo(
-    () =>
-      [datos.ventas, datos.abonos, datos.gastos, datos.cierres].reduce((s, lista) => s + lista.filter((x) => !x.sync).length, 0),
+    () => [datos.ventas, datos.abonos, datos.gastos, datos.cierres].reduce((s, lista) => s + lista.filter((x) => !x.sync).length, 0),
     [datos],
   )
 
@@ -117,9 +137,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return m
   }, [datos.clientes, datos.ventas, datos.abonos])
 
-  const saldo = useCallback((id: string) => Math.max(0, saldos.get(id) ?? 0), [saldos])
+  const { monedaBase, monedaVista, tasas } = datos.ajustes
+  const dinero = useCallback((n: number) => formatear(convertir(n, monedaBase, monedaVista, tasas), monedaVista), [monedaBase, monedaVista, tasas])
+  const dineroBase = useCallback((n: number) => formatear(n, monedaBase), [monedaBase])
+  const saldo = useCallback((id: string) => Math.max(0, redondear(saldos.get(id) ?? 0)), [saldos])
   const ahora = () => new Date().toISOString()
   const quien = usuario?.id ?? 'u0'
+  const mutar = (fn: (d: Datos) => Datos, msg?: string) => {
+    setDatos(fn)
+    if (msg) avisar(msg)
+  }
+  const listaCat = (tipo: TipoCategoria) => (tipo === 'producto' ? 'categorias' : 'categoriasGasto') as 'categorias' | 'categoriasGasto'
 
   const store: Store = {
     datos,
@@ -129,6 +157,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     sincronizando,
     simularSinSenal: sesion.simularSinSenal,
     aviso,
+    dinero,
+    dineroBase,
     saldo,
     avisar,
     entrar: (usuarioId) => setSesion((s) => ({ ...s, usuarioId })),
@@ -137,64 +167,165 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     registrarVenta: (clienteId, items, tipo) => {
       const cliente = datos.clientes.find((c) => c.id === clienteId)!
-      const total = items.reduce((s, it) => s + it.cantidad * it.precio, 0)
-      setDatos((d) => ({
-        ...d,
-        ventas: [...d.ventas, { id: uid(), fecha: ahora(), clienteId, rutaId: cliente.rutaId, usuarioId: quien, items, total, tipo, sync: enLinea }],
-        productos: d.productos.map((p) => {
-          const it = items.find((i) => i.productoId === p.id)
-          return it ? { ...p, stock: Math.max(0, p.stock - it.cantidad) } : p
+      const total = redondear(items.reduce((s, it) => s + it.cantidad * it.precio, 0))
+      mutar(
+        (d) => ({
+          ...d,
+          ventas: [...d.ventas, { id: uid(), fecha: ahora(), clienteId, rutaId: cliente.rutaId, usuarioId: quien, items, total, tipo, sync: enLinea }],
+          productos: d.productos.map((p) => {
+            const it = items.find((i) => i.productoId === p.id)
+            return it ? { ...p, stock: Math.max(0, p.stock - it.cantidad) } : p
+          }),
         }),
-      }))
-      avisar(tipo === 'fiado' ? 'Venta fiada registrada' : 'Venta de contado registrada')
+        tipo === 'fiado' ? 'Venta fiada registrada' : 'Venta de contado registrada',
+      )
     },
+
+    anularVenta: (id) =>
+      mutar((d) => {
+        const v = d.ventas.find((x) => x.id === id)
+        if (!v) return d
+        return {
+          ...d,
+          ventas: d.ventas.filter((x) => x.id !== id),
+          productos: d.productos.map((p) => {
+            const it = v.items.find((i) => i.productoId === p.id)
+            return it ? { ...p, stock: p.stock + it.cantidad } : p
+          }),
+        }
+      }, 'Venta anulada y productos devueltos al inventario'),
 
     registrarAbono: (clienteId, monto) => {
       const cliente = datos.clientes.find((c) => c.id === clienteId)!
-      setDatos((d) => ({
-        ...d,
-        abonos: [...d.abonos, { id: uid(), fecha: ahora(), clienteId, rutaId: cliente.rutaId, usuarioId: quien, monto, sync: enLinea }],
-      }))
-      avisar('Abono registrado')
+      mutar(
+        (d) => ({ ...d, abonos: [...d.abonos, { id: uid(), fecha: ahora(), clienteId, rutaId: cliente.rutaId, usuarioId: quien, monto: redondear(monto), sync: enLinea }] }),
+        'Abono registrado',
+      )
     },
 
-    registrarGasto: (g) => {
-      setDatos((d) => ({ ...d, gastos: [...d.gastos, { id: uid(), fecha: ahora(), usuarioId: quien, sync: enLinea, ...g }] }))
-      avisar('Gasto registrado')
+    eliminarAbono: (id) => mutar((d) => ({ ...d, abonos: d.abonos.filter((a) => a.id !== id) }), 'Abono eliminado'),
+
+    guardarGasto: ({ id, ...g }) =>
+      mutar(
+        (d) =>
+          id
+            ? { ...d, gastos: d.gastos.map((x) => (x.id === id ? { ...x, ...g, monto: redondear(g.monto), sync: enLinea } : x)) }
+            : { ...d, gastos: [...d.gastos, { id: uid(), fecha: ahora(), usuarioId: quien, sync: enLinea, ...g, monto: redondear(g.monto) }] },
+        id ? 'Gasto actualizado' : 'Gasto registrado',
+      ),
+
+    eliminarGasto: (id) => mutar((d) => ({ ...d, gastos: d.gastos.filter((g) => g.id !== id) }), 'Gasto eliminado'),
+
+    cerrarRuta: (rutaId, efectivo) =>
+      mutar(
+        (d) => ({ ...d, cierres: [...d.cierres, { id: uid(), fecha: ahora(), dia: hoyKey(), rutaId, usuarioId: quien, efectivo, sync: enLinea }] }),
+        usuario?.rol === 'vendedor' ? 'Ruta cerrada y enviada a Rafael' : 'Ruta cerrada',
+      ),
+
+    guardarProducto: ({ id, ...p }) =>
+      mutar(
+        (d) => (id ? { ...d, productos: d.productos.map((x) => (x.id === id ? { ...x, ...p } : x)) } : { ...d, productos: [...d.productos, { ...p, id: uid() }] }),
+        id ? 'Producto guardado' : 'Producto creado',
+      ),
+
+    eliminarProducto: (id) => mutar((d) => ({ ...d, productos: d.productos.filter((p) => p.id !== id) }), 'Producto eliminado'),
+
+    entradaInventario: (productoId, cantidad) =>
+      mutar((d) => ({ ...d, productos: d.productos.map((p) => (p.id === productoId ? { ...p, stock: p.stock + cantidad } : p)) }), 'Inventario actualizado'),
+
+    guardarCategoria: (tipo, { id, nombre }) => {
+      const clave = listaCat(tipo)
+      const nuevoId = id ?? uid()
+      mutar(
+        (d) => ({
+          ...d,
+          [clave]: id ? d[clave].map((c: Categoria) => (c.id === id ? { ...c, nombre } : c)) : [...d[clave], { id: nuevoId, nombre }],
+        }),
+        id ? 'Categoría renombrada' : 'Categoría creada',
+      )
+      return nuevoId
     },
 
-    entradaInventario: (productoId, cantidad) => {
-      setDatos((d) => ({ ...d, productos: d.productos.map((p) => (p.id === productoId ? { ...p, stock: p.stock + cantidad } : p)) }))
-      avisar('Inventario actualizado')
+    eliminarCategoria: (tipo, id, moverA) => {
+      const clave = listaCat(tipo)
+      mutar(
+        (d) => ({
+          ...d,
+          [clave]: d[clave].filter((c: Categoria) => c.id !== id),
+          productos: tipo === 'producto' ? d.productos.map((p) => (p.categoriaId === id ? { ...p, categoriaId: moverA } : p)) : d.productos,
+          gastos: tipo === 'gasto' ? d.gastos.map((g) => (g.categoriaId === id ? { ...g, categoriaId: moverA } : g)) : d.gastos,
+        }),
+        'Categoría eliminada',
+      )
     },
 
-    guardarProducto: (p) => {
-      setDatos((d) => ({ ...d, productos: d.productos.map((x) => (x.id === p.id ? p : x)) }))
-      avisar('Producto guardado')
+    guardarCliente: ({ id, ...c }) =>
+      mutar(
+        (d) =>
+          id
+            ? { ...d, clientes: d.clientes.map((x) => (x.id === id ? { ...x, ...c } : x)) }
+            : { ...d, clientes: [...d.clientes, { ...c, id: uid(), saldoInicial: 0 }] },
+        id ? 'Cliente actualizado' : 'Cliente agregado a la ruta',
+      ),
+
+    eliminarCliente: (id) => mutar((d) => ({ ...d, clientes: d.clientes.filter((c) => c.id !== id) }), 'Cliente eliminado'),
+
+    guardarRuta: ({ id, ...r }, vendedorId) => {
+      const rutaId = id ?? uid()
+      mutar(
+        (d) => ({
+          ...d,
+          rutas: id ? d.rutas.map((x) => (x.id === id ? { ...x, ...r } : x)) : [...d.rutas, { ...r, id: rutaId }],
+          usuarios: d.usuarios.map((u) => {
+            if (u.rol !== 'vendedor') return u
+            if (u.id === vendedorId) return { ...u, rutaId }
+            if (u.rutaId === rutaId) return { ...u, rutaId: undefined }
+            return u
+          }),
+        }),
+        id ? 'Ruta actualizada' : 'Ruta creada',
+      )
     },
 
-    agregarProducto: (p) => {
-      setDatos((d) => ({ ...d, productos: [...d.productos, { ...p, id: uid() }] }))
-      avisar('Producto creado')
+    eliminarRuta: (id, moverA) =>
+      mutar(
+        (d) => ({
+          ...d,
+          rutas: d.rutas.filter((r) => r.id !== id),
+          clientes: d.clientes.map((c) => (c.rutaId === id ? { ...c, rutaId: moverA } : c)),
+          usuarios: d.usuarios.map((u) => (u.rutaId === id ? { ...u, rutaId: undefined } : u)),
+        }),
+        'Ruta eliminada',
+      ),
+
+    guardarUsuario: ({ id, ...u }) =>
+      mutar(
+        (d) =>
+          id
+            ? { ...d, usuarios: d.usuarios.map((x) => (x.id === id ? { ...x, ...u } : x)) }
+            : { ...d, usuarios: [...d.usuarios, { ...u, id: uid(), rol: 'vendedor' }] },
+        id ? 'Vendedor actualizado' : 'Vendedor creado',
+      ),
+
+    eliminarUsuario: (id) => mutar((d) => ({ ...d, usuarios: d.usuarios.filter((u) => u.id !== id) }), 'Vendedor eliminado'),
+
+    ajustar: (cambios) => setDatos((d) => ({ ...d, ajustes: { ...d.ajustes, ...cambios } })),
+
+    actualizarTasas: async (silencioso = false) => {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD')
+        const json = await res.json()
+        if (json?.result !== 'success' || !json.rates) throw new Error('sin tasas')
+        setDatos((d) => ({ ...d, ajustes: { ...d.ajustes, tasas: { ...d.ajustes.tasas, ...json.rates }, tasasFecha: new Date().toISOString(), tasasFuente: 'en línea' } }))
+        if (!silencioso) avisar('Tasas de cambio actualizadas')
+        return true
+      } catch {
+        if (!silencioso) avisar('No se pudieron traer las tasas. Puede escribirlas a mano.')
+        return false
+      }
     },
 
-    agregarCliente: (c) => {
-      setDatos((d) => ({ ...d, clientes: [...d.clientes, { ...c, id: uid(), saldoInicial: 0 }] }))
-      avisar('Cliente agregado a la ruta')
-    },
-
-    cerrarRuta: (rutaId, efectivo) => {
-      setDatos((d) => ({
-        ...d,
-        cierres: [...d.cierres, { id: uid(), fecha: ahora(), dia: hoyKey(), rutaId, usuarioId: quien, efectivo, sync: enLinea }],
-      }))
-      avisar(usuario?.rol === 'vendedor' ? 'Ruta cerrada y enviada a Rafael' : 'Ruta cerrada')
-    },
-
-    reiniciar: () => {
-      setDatos(crearDatosDemo())
-      avisar('Datos de ejemplo restablecidos')
-    },
+    reiniciar: () => mutar(() => crearDatosDemo(), 'Datos de ejemplo restablecidos'),
   }
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>

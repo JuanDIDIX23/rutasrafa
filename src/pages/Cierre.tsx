@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react'
 import { CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useStore } from '../store'
 import { Boton, Card, Titulo, Vacio } from '../components/ui'
-import { cop, dayKey, fechaLarga, hora } from '../utils'
+import { dayKey, fechaLarga, hora, redondear } from '../utils'
 
 export default function Cierre({ rutaId }: { rutaId: string }) {
-  const { datos, cerrarRuta } = useStore()
-  const ruta = datos.rutas.find((r) => r.id === rutaId)!
+  const { datos, cerrarRuta, dinero } = useStore()
+  const ruta = datos.rutas.find((r) => r.id === rutaId)
   const [desfase, setDesfase] = useState(0)
 
   const fecha = new Date()
@@ -24,15 +24,16 @@ export default function Cierre({ rutaId }: { rutaId: string }) {
     const gastado = gastos.reduce((s, g) => s + g.monto, 0)
     const visitados = new Set([...ventas, ...abonos].map((x) => x.clienteId)).size
     const porProducto = new Map<string, number>()
-    ventas.forEach((v) => v.items.forEach((i) => porProducto.set(i.productoId, (porProducto.get(i.productoId) ?? 0) + i.cantidad)))
+    ventas.forEach((v) => v.items.forEach((i) => porProducto.set(i.nombre, (porProducto.get(i.nombre) ?? 0) + i.cantidad)))
     const productos = [...porProducto.entries()]
-      .map(([id, cant]) => ({ nombre: datos.productos.find((p) => p.id === id)?.nombre ?? '—', cant }))
+      .map(([nombre, cant]) => ({ nombre, cant }))
       .sort((a, b) => b.cant - a.cant)
     const cierre = datos.cierres.find((c) => c.rutaId === rutaId && c.dia === dia)
-    return { contado, fiado, recibido, gastado, efectivo: contado + recibido - gastado, visitados, productos, cierre, hayMovimiento: ventas.length + abonos.length + gastos.length > 0 }
+    return { contado, fiado, recibido, gastado, efectivo: redondear(contado + recibido - gastado), visitados, productos, cierre, hayMovimiento: ventas.length + abonos.length + gastos.length > 0 }
   }, [datos, rutaId, dia])
 
   const totalClientes = datos.clientes.filter((c) => c.rutaId === rutaId).length
+  if (!ruta) return null
 
   return (
     <div>
@@ -52,7 +53,7 @@ export default function Cierre({ rutaId }: { rutaId: string }) {
       <Card className="overflow-hidden">
         <div className="bg-brand-800 px-5 py-5 text-white">
           <p className="text-sm text-brand-100">Efectivo a entregar</p>
-          <p className="mt-1 text-3xl font-extrabold tracking-tight">{cop(r.efectivo)}</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight">{dinero(r.efectivo)}</p>
           <p className="mt-1 text-xs text-brand-200">Contado + abonos − gastos</p>
         </div>
         <dl className="divide-y divide-stone-100 text-[15px]">
@@ -64,7 +65,7 @@ export default function Cierre({ rutaId }: { rutaId: string }) {
           ].map(([etq, val, cls]) => (
             <div key={etq as string} className="flex justify-between px-5 py-3">
               <dt className="text-stone-600">{etq}</dt>
-              <dd className={`font-semibold ${cls}`}>{etq === 'Gastos de la ruta' && (val as number) > 0 ? '− ' : ''}{cop(val as number)}</dd>
+              <dd className={`font-semibold ${cls}`}>{etq === 'Gastos de la ruta' && (val as number) > 0 ? '− ' : ''}{dinero(val as number)}</dd>
             </div>
           ))}
         </dl>

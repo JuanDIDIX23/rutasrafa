@@ -1,56 +1,65 @@
-import type { Abono, Cierre, Cliente, Datos, Gasto, Producto, Ruta, Usuario, Venta } from './types'
-import { dayKey } from './utils'
+import type { Abono, Categoria, Cierre, Cliente, Datos, Gasto, Producto, Ruta, Usuario, Venta } from './types'
+import { dayKey, redondear, TASAS_APROX } from './utils'
 
-const PRODUCTOS: [string, string, number][] = [
-  ['Arroz 500 g', 'Granos', 2800],
-  ['Arroz 1 kg', 'Granos', 5200],
-  ['Fríjol cargamanto 500 g', 'Granos', 6900],
-  ['Lenteja 500 g', 'Granos', 3900],
-  ['Garbanzo 500 g', 'Granos', 4500],
-  ['Arveja seca 500 g', 'Granos', 3200],
-  ['Aceite 1 L', 'Despensa', 9800],
-  ['Aceite 500 ml', 'Despensa', 5400],
-  ['Azúcar 1 kg', 'Despensa', 4900],
-  ['Sal 500 g', 'Despensa', 1500],
-  ['Panela 500 g', 'Despensa', 3000],
-  ['Harina de maíz 1 kg', 'Despensa', 3900],
-  ['Espagueti 250 g', 'Despensa', 2200],
-  ['Pasta conchitas 250 g', 'Despensa', 2200],
-  ['Atún en lata 170 g', 'Despensa', 6500],
-  ['Sardinas 425 g', 'Despensa', 7200],
-  ['Salsa de tomate 200 g', 'Despensa', 3800],
-  ['Mayonesa 200 g', 'Despensa', 4200],
-  ['Café molido 250 g', 'Desayuno', 9500],
-  ['Chocolate de mesa 250 g', 'Desayuno', 6800],
-  ['Avena en hojuelas 500 g', 'Desayuno', 4300],
-  ['Leche en polvo 400 g', 'Desayuno', 15900],
-  ['Cereal 300 g', 'Desayuno', 8900],
-  ['Aromática caja x20', 'Desayuno', 2500],
-  ['Arepas paquete x5', 'Panadería', 4500],
-  ['Galletas de soda', 'Panadería', 5700],
-  ['Galletas wafer', 'Panadería', 3500],
-  ['Ponqué tajado', 'Panadería', 4200],
-  ['Tostadas', 'Panadería', 3800],
-  ['Pan tajado', 'Panadería', 7400],
-  ['Huevos x12', 'Lácteos y huevos', 13200],
-  ['Queso campesino 500 g', 'Lácteos y huevos', 9800],
-  ['Mantequilla 125 g', 'Lácteos y huevos', 3900],
-  ['Kumis 1 L', 'Lácteos y huevos', 5600],
-  ['Papas fritas', 'Mecato', 2500],
-  ['Maní salado 120 g', 'Mecato', 2800],
-  ['Bocadillo veleño', 'Mecato', 3000],
-  ['Arequipe 250 g', 'Mecato', 5200],
-  ['Gelatina', 'Mecato', 1800],
-  ['Chocolatinas x6', 'Mecato', 6000],
+const CATEGORIAS = ['Abarrotes', 'Despensa', 'Desayuno', 'Panadería', 'Lácteos y huevos', 'Botanas y dulces', 'Bebidas']
+
+// nombre, categoría (índice), precio USD, unidad
+const PRODUCTOS: [string, number, number, string][] = [
+  ['Arroz 2 lb', 0, 2.49, 'bolsa'],
+  ['Arroz 5 lb', 0, 5.29, 'bolsa'],
+  ['Frijol pinto 2 lb', 0, 3.19, 'bolsa'],
+  ['Frijol negro 2 lb', 0, 3.29, 'bolsa'],
+  ['Lenteja 1 lb', 0, 1.79, 'bolsa'],
+  ['Harina de maíz 4.4 lb', 0, 4.49, 'bolsa'],
+  ['Tortillas de maíz x30', 0, 2.99, 'paquete'],
+  ['Tortillas de harina x10', 0, 3.49, 'paquete'],
+  ['Aceite vegetal 48 oz', 1, 5.99, 'botella'],
+  ['Azúcar 4 lb', 1, 3.79, 'bolsa'],
+  ['Sal 26 oz', 1, 1.29, 'unidad'],
+  ['Fideo 7 oz', 1, 0.89, 'paquete'],
+  ['Atún en lata 5 oz', 1, 1.69, 'lata'],
+  ['Salsa de tomate 8 oz', 1, 0.79, 'lata'],
+  ['Chiles jalapeños 12 oz', 1, 1.99, 'lata'],
+  ['Consomé de pollo 7.9 oz', 1, 2.49, 'frasco'],
+  ['Mayonesa 30 oz', 1, 4.99, 'frasco'],
+  ['Café molido 12 oz', 2, 7.49, 'bolsa'],
+  ['Chocolate de mesa 19 oz', 2, 5.49, 'caja'],
+  ['Avena 18 oz', 2, 3.29, 'caja'],
+  ['Leche en polvo 1.6 lb', 2, 9.99, 'bolsa'],
+  ['Cereal 12 oz', 2, 4.29, 'caja'],
+  ['Té de manzanilla x25', 2, 1.99, 'caja'],
+  ['Pan dulce x4', 3, 3.99, 'paquete'],
+  ['Bolillos x6', 3, 2.99, 'paquete'],
+  ['Galletas María', 3, 1.49, 'paquete'],
+  ['Pan de caja', 3, 3.79, 'unidad'],
+  ['Huevos x12', 4, 3.99, 'docena'],
+  ['Queso fresco 12 oz', 4, 4.99, 'unidad'],
+  ['Crema mexicana 15 oz', 4, 3.49, 'unidad'],
+  ['Mantequilla 1 lb', 4, 4.79, 'unidad'],
+  ['Leche 1 galón', 4, 4.29, 'galón'],
+  ['Papitas 8 oz', 5, 3.99, 'bolsa'],
+  ['Cacahuates 12 oz', 5, 3.49, 'bolsa'],
+  ['Dulce de tamarindo', 5, 1.99, 'paquete'],
+  ['Cajeta 13 oz', 5, 4.49, 'frasco'],
+  ['Chocolates x6', 5, 4.99, 'paquete'],
+  ['Jugo de naranja 64 oz', 6, 4.49, 'botella'],
+  ['Refresco 2 L', 6, 2.79, 'botella'],
+  ['Agua x24', 6, 5.99, 'paquete'],
 ]
 
 const NOMBRES = [
-  'Doña Marleny Castro', 'Tienda La Esquina', 'Gloria Patiño', 'Hernando Ruiz', 'Luz Dary Moreno',
-  'Miscelánea El Ahorro', 'Rosalba Cárdenas', 'Jairo Quintero', 'Blanca Nieves Ortiz', 'Fabio Ramírez',
-  'Cigarrería El Paisa', 'Martha Lucía Vargas', 'Esperanza Díaz', 'Álvaro Mendoza', 'Nubia Herrera',
-  'Tienda Don Pacho', 'Amparo Salazar', 'Orlando Becerra', 'Yolanda Rincón', 'Gustavo Peña',
-  'Fruver La Cosecha', 'Carmenza Aguilar', 'Rubiela Torres', 'Jorge Eliécer Cano', 'Dora Inés Pulido',
-  'Panadería Mi Pan', 'Stella Montoya', 'Humberto Galvis', 'Mercedes Arango', 'Luis Alberto Ríos',
+  'Doña Lupita Hernández', 'Tienda La Michoacana', 'María Elena Ruiz', 'José Luis Ramírez', 'Rosa Martínez',
+  'Mini Market El Sol', 'Carmen Torres', 'Roberto Flores', 'Guadalupe Sánchez', 'Antonio Vargas',
+  'Abarrotes Don Chuy', 'Patricia Morales', 'Leticia Domínguez', 'Francisco Jiménez', 'Verónica Castillo',
+  'Carnicería La Esperanza', 'Silvia Romero', 'Jorge Mendoza', 'Teresa Gutiérrez', 'Manuel Ortega',
+  'Panadería La Espiga', 'Alicia Navarro', 'Martha Delgado', 'Ricardo Aguilar', 'Sandra Rivas',
+  'Tienda El Salvadoreño', 'Gloria Cruz', 'Héctor Reyes', 'Yolanda Peña', 'Luis Alberto Soto',
+]
+
+const CALLES = [
+  ['E 1st St', 'E Cesar Chavez Ave', 'S Soto St', 'Whittier Blvd', 'E 4th St'],
+  ['Pacific Blvd', 'Florence Ave', 'Tweedy Blvd', 'State St', 'Gage Ave'],
+  ['Van Nuys Blvd', 'Sherman Way', 'Vanowen St', 'Victory Blvd', 'Lankershim Blvd'],
 ]
 
 function generador(semilla: number) {
@@ -70,18 +79,27 @@ export function crearDatosDemo(): Datos {
   let n = 0
   const id = (p: string) => `${p}${++n}`
 
-  const productos: Producto[] = PRODUCTOS.map(([nombre, categoria, precio], i) => ({
+  const categorias: Categoria[] = CATEGORIAS.map((nombre, i) => ({ id: `k${i + 1}`, nombre }))
+  const categoriasGasto: Categoria[] = ['Gasolina', 'Comida', 'Mercancía', 'Pago a vendedores', 'Mantenimiento', 'Otro'].map((nombre, i) => ({
+    id: `kg${i + 1}`,
+    nombre,
+  }))
+
+  const productos: Producto[] = PRODUCTOS.map(([nombre, cat, precio, unidad], i) => ({
     id: `p${i + 1}`,
     nombre,
-    categoria,
+    categoriaId: categorias[cat].id,
     precio,
+    costo: redondear(precio * 0.68),
+    unidad,
     stock: 0,
+    minimo: 10,
   }))
 
   const rutas: Ruta[] = [
-    { id: 'r1', nombre: 'Ruta Norte', dia: 1, zona: 'La Esperanza · Villa Nueva' },
-    { id: 'r2', nombre: 'Ruta Centro', dia: 3, zona: 'San Martín · El Prado' },
-    { id: 'r3', nombre: 'Ruta Sur', dia: 5, zona: 'Las Brisas · El Recreo' },
+    { id: 'r1', nombre: 'Ruta Este', dia: 1, zona: 'Boyle Heights · East LA' },
+    { id: 'r2', nombre: 'Ruta Sur', dia: 3, zona: 'Huntington Park · South Gate' },
+    { id: 'r3', nombre: 'Ruta Valle', dia: 5, zona: 'Van Nuys · North Hollywood' },
   ]
 
   const usuarios: Usuario[] = [
@@ -91,14 +109,18 @@ export function crearDatosDemo(): Datos {
     { id: 'u3', nombre: 'Wilson Pérez', rol: 'vendedor', rutaId: 'r3' },
   ]
 
-  const clientes: Cliente[] = NOMBRES.map((nombre, i) => ({
-    id: `c${i + 1}`,
-    nombre,
-    direccion: `Calle ${entre(10, 90)} # ${entre(10, 60)}-${entre(10, 99)}`,
-    telefono: `3${entre(0, 2)}${entre(0, 9)} ${entre(100, 999)} ${entre(1000, 9999)}`,
-    rutaId: rutas[Math.floor(i / 10)].id,
-    saldoInicial: r() < 0.3 ? entre(1, 6) * 5000 : 0,
-  }))
+  const clientes: Cliente[] = NOMBRES.map((nombre, i) => {
+    const ruta = Math.floor(i / 10)
+    const calles = CALLES[ruta]
+    return {
+      id: `c${i + 1}`,
+      nombre,
+      direccion: `${entre(1, 9)}${entre(100, 999)} ${calles[entre(0, calles.length - 1)]}`,
+      telefono: `(${['323', '213', '818'][ruta]}) 555-${String(entre(100, 199)).padStart(4, '0')}`,
+      rutaId: rutas[ruta].id,
+      saldoInicial: r() < 0.3 ? entre(2, 8) * 5 : 0,
+    }
+  })
 
   const ventas: Venta[] = []
   const abonos: Abono[] = []
@@ -121,20 +143,20 @@ export function crearDatosDemo(): Datos {
         f.setHours(8, idx * 22 + entre(0, 15), 0, 0)
 
         if (deuda[c.id] > 0 && r() < 0.55) {
-          const monto = Math.min(deuda[c.id], Math.max(2000, Math.round((deuda[c.id] * (0.4 + r() * 0.6)) / 1000) * 1000))
-          deuda[c.id] -= monto
+          const monto = Math.min(deuda[c.id], Math.max(5, Math.round(deuda[c.id] * (0.4 + r() * 0.6))))
+          deuda[c.id] = redondear(deuda[c.id] - monto)
           efectivo += monto
           abonos.push({ id: id('a'), fecha: f.toISOString(), clienteId: c.id, rutaId: ruta.id, usuarioId: vendedor.id, monto, sync: true })
         }
 
         if (r() < 0.8) {
           const elegidos = new Set<number>()
-          const cuantos = entre(1, 4)
+          const cuantos = entre(3, 8)
           while (elegidos.size < cuantos) elegidos.add(entre(0, productos.length - 1))
-          const items = [...elegidos].map((i) => ({ productoId: productos[i].id, cantidad: entre(1, 3), precio: productos[i].precio }))
-          const total = items.reduce((s, it) => s + it.cantidad * it.precio, 0)
+          const items = [...elegidos].map((i) => ({ productoId: productos[i].id, nombre: productos[i].nombre, cantidad: entre(1, 6), precio: productos[i].precio }))
+          const total = redondear(items.reduce((s, it) => s + it.cantidad * it.precio, 0))
           const tipo = r() < 0.35 ? 'fiado' : 'contado'
-          if (tipo === 'fiado') deuda[c.id] += total
+          if (tipo === 'fiado') deuda[c.id] = redondear(deuda[c.id] + total)
           else efectivo += total
           f.setMinutes(f.getMinutes() + 5)
           ventas.push({ id: id('v'), fecha: f.toISOString(), clienteId: c.id, rutaId: ruta.id, usuarioId: vendedor.id, items, total, tipo, sync: true })
@@ -143,25 +165,45 @@ export function crearDatosDemo(): Datos {
 
       const tarde = new Date(dia)
       tarde.setHours(13, 30, 0, 0)
-      const gasolina = entre(25, 40) * 1000
-      const almuerzo = entre(12, 18) * 1000
+      const gasolina = entre(35, 60)
+      const comida = entre(12, 18)
       gastos.push(
-        { id: id('g'), fecha: tarde.toISOString(), rutaId: ruta.id, usuarioId: vendedor.id, categoria: 'Gasolina', descripcion: 'Tanqueo de la moto', monto: gasolina, sync: true },
-        { id: id('g'), fecha: tarde.toISOString(), rutaId: ruta.id, usuarioId: vendedor.id, categoria: 'Alimentación', descripcion: 'Almuerzo', monto: almuerzo, sync: true },
+        { id: id('g'), fecha: tarde.toISOString(), rutaId: ruta.id, usuarioId: vendedor.id, categoriaId: 'kg1', descripcion: 'Gasolina de la van', monto: gasolina, sync: true },
+        { id: id('g'), fecha: tarde.toISOString(), rutaId: ruta.id, usuarioId: vendedor.id, categoriaId: 'kg2', descripcion: 'Almuerzo', monto: comida, sync: true },
       )
       tarde.setHours(16, 10)
-      cierres.push({ id: id('z'), fecha: tarde.toISOString(), dia: dayKey(dia), rutaId: ruta.id, usuarioId: vendedor.id, efectivo: efectivo - gasolina - almuerzo, sync: true })
+      cierres.push({ id: id('z'), fecha: tarde.toISOString(), dia: dayKey(dia), rutaId: ruta.id, usuarioId: vendedor.id, efectivo: redondear(efectivo - gasolina - comida), sync: true })
     }
 
     if (dia.getDay() === 6) {
       const f = new Date(dia)
       f.setHours(10, 0, 0, 0)
-      gastos.push({ id: id('g'), fecha: f.toISOString(), rutaId: null, usuarioId: 'u0', categoria: 'Mercancía', descripcion: 'Compra semanal a proveedor', monto: entre(170, 240) * 1000, sync: true })
+      gastos.push({ id: id('g'), fecha: f.toISOString(), rutaId: null, usuarioId: 'u0', categoriaId: 'kg3', descripcion: 'Compra semanal al mayorista', monto: entre(1100, 1500), sync: true })
     }
   }
 
   productos.forEach((p) => (p.stock = entre(14, 60)))
-  ;[3, 16, 22, 31].forEach((i) => (productos[i].stock = entre(2, 8)))
+  ;[4, 16, 22, 31].forEach((i) => (productos[i].stock = entre(2, 8)))
 
-  return { productos, rutas, clientes, usuarios, ventas, abonos, gastos, cierres }
+  return {
+    ajustes: {
+      negocio: 'Distribuidora Rafael',
+      monedaBase: 'USD',
+      monedaVista: 'USD',
+      monedas: ['USD', 'MXN', 'GTQ', 'COP', 'EUR'],
+      tasas: { ...TASAS_APROX },
+      tasasFecha: null,
+      tasasFuente: 'aproximadas',
+    },
+    categorias,
+    categoriasGasto,
+    productos,
+    rutas,
+    clientes,
+    usuarios,
+    ventas,
+    abonos,
+    gastos,
+    cierres,
+  }
 }

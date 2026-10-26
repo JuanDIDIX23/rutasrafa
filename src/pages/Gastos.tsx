@@ -1,17 +1,16 @@
 import { useMemo, useState } from 'react'
+import { Tags, Trash2 } from 'lucide-react'
 import { useStore } from '../store'
-import { Boton, Campo, Card, Chips, Entrada, Titulo, Vacio } from '../components/ui'
-import { cop, dayKey, fechaCorta, haceDias } from '../utils'
-
-const CATEGORIAS = ['Gasolina', 'Alimentación', 'Mercancía', 'Pago vendedor', 'Mantenimiento', 'Otro']
+import type { Gasto } from '../types'
+import { ListaCategorias } from '../components/Catalogos'
+import { Boton, Campo, Card, Chips, Confirmar, Entrada, Hoja, Selector, Titulo, Vacio } from '../components/ui'
+import { dayKey, fechaCorta, haceDias, numero } from '../utils'
 
 export default function Gastos() {
-  const { datos, usuario, registrarGasto } = useStore()
+  const { datos, usuario, dinero } = useStore()
   const esAdmin = usuario!.rol === 'admin'
-  const [categoria, setCategoria] = useState('Gasolina')
-  const [monto, setMonto] = useState('')
-  const [descripcion, setDescripcion] = useState('')
-  const [rutaId, setRutaId] = useState<string>(esAdmin ? 'general' : usuario!.rutaId!)
+  const [editar, setEditar] = useState<Gasto | null>(null)
+  const [verCategorias, setVerCategorias] = useState(false)
 
   const desde = haceDias(29)
   const lista = useMemo(
@@ -23,51 +22,33 @@ export default function Gastos() {
     [datos.gastos, esAdmin, usuario, desde],
   )
   const total = lista.reduce((s, g) => s + g.monto, 0)
-  const porCategoria = CATEGORIAS.map((c) => ({ c, v: lista.filter((g) => g.categoria === c).reduce((s, g) => s + g.monto, 0) }))
+  const porCategoria = datos.categoriasGasto
+    .map((c) => ({ c: c.nombre, v: lista.filter((g) => g.categoriaId === c.id).reduce((s, g) => s + g.monto, 0) }))
     .filter((x) => x.v > 0)
     .sort((a, b) => b.v - a.v)
-  const nombreRuta = (id: string | null) => (id ? datos.rutas.find((r) => r.id === id)?.nombre : 'General')
-
-  const guardar = () => {
-    registrarGasto({ categoria, descripcion: descripcion.trim() || categoria, monto: Number(monto), rutaId: rutaId === 'general' ? null : rutaId })
-    setMonto('')
-    setDescripcion('')
-  }
+  const nombreRuta = (id: string | null) => (id ? datos.rutas.find((r) => r.id === id)?.nombre ?? 'Ruta eliminada' : 'General')
+  const nombreCat = (id: string) => datos.categoriasGasto.find((c) => c.id === id)?.nombre ?? 'Otro'
 
   return (
     <div>
       <Card className="p-5">
-        <h2 className="text-lg font-bold">Registrar gasto</h2>
-        <div className="mt-4 space-y-4">
-          <Chips valor={categoria} onCambio={setCategoria} opciones={CATEGORIAS.map((c) => ({ valor: c, etiqueta: c }))} />
-          <div className="grid grid-cols-2 gap-3">
-            <Campo etiqueta="Valor (COP)">
-              <Entrada type="number" inputMode="numeric" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="0" />
-            </Campo>
-            {esAdmin ? (
-              <Campo etiqueta="Ruta">
-                <select value={rutaId} onChange={(e) => setRutaId(e.target.value)} className="w-full rounded-xl border border-stone-300 bg-white px-3 py-3 text-[15px] outline-none focus:border-brand-600">
-                  <option value="general">General</option>
-                  {datos.rutas.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-                </select>
-              </Campo>
-            ) : (
-              <Campo etiqueta="Ruta"><div className="rounded-xl bg-stone-100 px-3.5 py-3 text-[15px] text-stone-600">{nombreRuta(rutaId)}</div></Campo>
-            )}
-          </div>
-          <Campo etiqueta="Detalle (opcional)">
-            <Entrada value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej.: tanqueo, almuerzo, repuesto" />
-          </Campo>
-          <Boton className="w-full" disabled={!(Number(monto) > 0)} onClick={guardar}>Guardar gasto</Boton>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">Registrar gasto</h2>
+          {esAdmin && (
+            <button onClick={() => setVerCategorias(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
+              <Tags size={16} /> Categorías
+            </button>
+          )}
         </div>
+        <FormGasto key={datos.categoriasGasto.length} />
       </Card>
 
-      <Titulo>Últimos 30 días · {cop(total)}</Titulo>
+      <Titulo>Últimos 30 días · {dinero(total)}</Titulo>
       {porCategoria.length > 0 && (
         <Card className="mb-3 space-y-2.5 p-4">
           {porCategoria.map(({ c, v }) => (
             <div key={c}>
-              <div className="mb-1 flex justify-between text-sm"><span className="text-stone-600">{c}</span><span className="font-semibold">{cop(v)}</span></div>
+              <div className="mb-1 flex justify-between text-sm"><span className="text-stone-600">{c}</span><span className="font-semibold">{dinero(v)}</span></div>
               <div className="h-1.5 rounded-full bg-stone-100"><div className="h-full rounded-full bg-rose-400" style={{ width: `${(v / total) * 100}%` }} /></div>
             </div>
           ))}
@@ -78,17 +59,99 @@ export default function Gastos() {
       ) : (
         <Card>
           <ul className="divide-y divide-stone-100">
-            {lista.slice(0, 30).map((g) => (
-              <li key={g.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-[15px] font-medium">{g.descripcion}</p>
-                  <p className="text-xs text-stone-500">{fechaCorta(g.fecha)} · {g.categoria}{esAdmin ? ` · ${nombreRuta(g.rutaId)}` : ''}</p>
-                </div>
-                <span className="shrink-0 font-semibold text-rose-600">{cop(g.monto)}</span>
+            {lista.slice(0, 40).map((g) => (
+              <li key={g.id}>
+                <button onClick={() => setEditar(g)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-stone-50">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[15px] font-medium">{g.descripcion}</span>
+                    <span className="block text-xs text-stone-500">{fechaCorta(g.fecha)} · {nombreCat(g.categoriaId)}{esAdmin ? ` · ${nombreRuta(g.rutaId)}` : ''}</span>
+                  </span>
+                  <span className="shrink-0 font-semibold text-rose-600">{dinero(g.monto)}</span>
+                </button>
               </li>
             ))}
           </ul>
         </Card>
+      )}
+      <p className="mt-3 text-center text-xs text-stone-400">Toque un gasto para corregirlo o eliminarlo.</p>
+
+      {editar && (
+        <Hoja abierta onCerrar={() => setEditar(null)} titulo="Editar gasto" subtitulo={fechaCorta(editar.fecha)}>
+          <FormGasto gasto={editar} onListo={() => setEditar(null)} />
+        </Hoja>
+      )}
+
+      <Hoja abierta={verCategorias} onCerrar={() => setVerCategorias(false)} titulo="Categorías de gastos" subtitulo="Cree, renombre o elimine categorías">
+        <ListaCategorias tipo="gasto" />
+      </Hoja>
+    </div>
+  )
+}
+
+function FormGasto({ gasto, onListo }: { gasto?: Gasto; onListo?: () => void }) {
+  const { datos, usuario, guardarGasto, eliminarGasto } = useStore()
+  const esAdmin = usuario!.rol === 'admin'
+  const base = datos.ajustes.monedaBase
+  const [categoriaId, setCategoriaId] = useState(gasto?.categoriaId ?? datos.categoriasGasto[0]?.id ?? '')
+  const [monto, setMonto] = useState(gasto ? String(gasto.monto) : '')
+  const [descripcion, setDescripcion] = useState(gasto?.descripcion ?? '')
+  const [rutaId, setRutaId] = useState<string>(gasto ? gasto.rutaId ?? 'general' : esAdmin ? 'general' : usuario!.rutaId ?? 'general')
+  const [borrar, setBorrar] = useState(false)
+  const nombreCat = datos.categoriasGasto.find((c) => c.id === categoriaId)?.nombre ?? 'Gasto'
+
+  const guardar = () => {
+    guardarGasto({ id: gasto?.id, categoriaId, descripcion: descripcion.trim() || nombreCat, monto: numero(monto), rutaId: rutaId === 'general' ? null : rutaId })
+    if (!gasto) {
+      setMonto('')
+      setDescripcion('')
+    }
+    onListo?.()
+  }
+
+  return (
+    <div className="mt-4 space-y-4">
+      <Chips valor={categoriaId} onCambio={setCategoriaId} opciones={datos.categoriasGasto.map((c) => ({ valor: c.id, etiqueta: c.nombre }))} />
+      <div className="grid grid-cols-2 gap-3">
+        <Campo etiqueta={`Valor (${base})`}>
+          <Entrada type="number" inputMode="decimal" step="0.01" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="0.00" />
+        </Campo>
+        {esAdmin ? (
+          <Campo etiqueta="Ruta">
+            <Selector value={rutaId} onChange={(e) => setRutaId(e.target.value)}>
+              <option value="general">General</option>
+              {datos.rutas.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+            </Selector>
+          </Campo>
+        ) : (
+          <Campo etiqueta="Ruta">
+            <div className="rounded-xl bg-stone-100 px-3.5 py-3 text-[15px] text-stone-600">{datos.rutas.find((r) => r.id === rutaId)?.nombre ?? 'General'}</div>
+          </Campo>
+        )}
+      </div>
+      <Campo etiqueta="Detalle (opcional)">
+        <Entrada value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej.: gasolina, almuerzo, repuesto" />
+      </Campo>
+      <div className="flex gap-3">
+        {gasto && (
+          <Boton variante="peligro" aria-label="Eliminar gasto" onClick={() => setBorrar(true)}>
+            <Trash2 size={18} />
+          </Boton>
+        )}
+        <Boton className="flex-1" disabled={!(numero(monto) > 0) || !categoriaId} onClick={guardar}>
+          {gasto ? 'Guardar cambios' : 'Guardar gasto'}
+        </Boton>
+      </div>
+      {gasto && (
+        <Confirmar
+          abierta={borrar}
+          onCerrar={() => setBorrar(false)}
+          titulo="¿Eliminar este gasto?"
+          texto="Se quita de los reportes y del cierre de ruta."
+          onConfirmar={() => {
+            eliminarGasto(gasto.id)
+            onListo?.()
+          }}
+        />
       )}
     </div>
   )

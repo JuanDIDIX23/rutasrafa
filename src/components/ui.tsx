@@ -1,12 +1,13 @@
-import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
-import { X } from 'lucide-react'
-import { cop } from '../utils'
+import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { createPortal } from 'react-dom'
+import { ChevronRight, X } from 'lucide-react'
+import { useStore } from '../store'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <div className={`rounded-2xl border border-stone-200/80 bg-white ${className}`}>{children}</div>
 }
 
-type Variante = 'primario' | 'suave' | 'fantasma' | 'ambar'
+type Variante = 'primario' | 'suave' | 'fantasma' | 'ambar' | 'peligro'
 
 export function Boton({ variante = 'primario', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variante?: Variante }) {
   const estilos: Record<Variante, string> = {
@@ -14,6 +15,7 @@ export function Boton({ variante = 'primario', className = '', ...props }: Butto
     suave: 'bg-brand-50 text-brand-800 hover:bg-brand-100',
     fantasma: 'bg-transparent text-stone-700 hover:bg-stone-100',
     ambar: 'bg-amber-500 text-stone-900 hover:bg-amber-400 disabled:bg-stone-300',
+    peligro: 'bg-rose-50 text-rose-700 hover:bg-rose-100',
   }
   return (
     <button
@@ -123,7 +125,7 @@ export function Hoja({
   }, [abierta, onCerrar])
 
   if (!abierta) return null
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="animar-aparecer absolute inset-0 bg-stone-900/40" onClick={onCerrar} />
       <div className="animar-subir relative flex max-h-[92dvh] w-full flex-col rounded-t-3xl bg-crema shadow-2xl sm:max-w-lg sm:rounded-3xl">
@@ -139,18 +141,39 @@ export function Hoja({
         <div className="flex-1 overflow-y-auto px-5 pb-5">{children}</div>
         {pie && <div className="border-t border-stone-200 bg-white px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:rounded-b-3xl">{pie}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
-export function Dato({ etiqueta, valor, tono = 'normal', detalle }: { etiqueta: string; valor: number; tono?: 'normal' | 'verde' | 'ambar' | 'rojo'; detalle?: string }) {
+export function Dato({
+  etiqueta,
+  valor,
+  tono = 'normal',
+  detalle,
+  onClick,
+}: {
+  etiqueta: string
+  valor: number
+  tono?: 'normal' | 'verde' | 'ambar' | 'rojo'
+  detalle?: string
+  onClick?: () => void
+}) {
+  const { dinero } = useStore()
   const colores = { normal: 'text-stone-900', verde: 'text-brand-700', ambar: 'text-amber-600', rojo: 'text-rose-600' }
   return (
-    <Card className="p-4">
-      <p className="text-[13px] font-medium text-stone-500">{etiqueta}</p>
-      <p className={`mt-1 text-xl font-bold tracking-tight ${colores[tono]}`}>{cop(valor)}</p>
+    <button
+      type="button"
+      onClick={onClick}
+      className="group rounded-2xl border border-stone-200/80 bg-white p-4 text-left transition hover:border-brand-200 active:scale-[.98]"
+    >
+      <p className="flex items-center justify-between text-[13px] font-medium text-stone-500">
+        {etiqueta}
+        {onClick && <ChevronRight size={15} className="text-stone-300 group-hover:text-brand-600" />}
+      </p>
+      <p className={`mt-1 text-xl font-bold tracking-tight ${colores[tono]}`}>{dinero(valor)}</p>
       {detalle && <p className="mt-0.5 text-xs text-stone-400">{detalle}</p>}
-    </Card>
+    </button>
   )
 }
 
@@ -164,5 +187,61 @@ export function Titulo({ children, accion }: { children: ReactNode; accion?: Rea
       <h3 className="text-[13px] font-semibold uppercase tracking-wide text-stone-500">{children}</h3>
       {accion}
     </div>
+  )
+}
+
+export function Selector(props: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={`w-full rounded-xl border border-stone-300 bg-white px-3 py-3 text-[15px] outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100 ${props.className ?? ''}`}
+    />
+  )
+}
+
+/** Hoja de confirmación para acciones que borran información. */
+export function Confirmar({
+  abierta,
+  onCerrar,
+  titulo,
+  texto,
+  accion = 'Eliminar',
+  onConfirmar,
+  children,
+  deshabilitado,
+}: {
+  abierta: boolean
+  onCerrar: () => void
+  titulo: string
+  texto: string
+  accion?: string
+  onConfirmar: () => void
+  children?: ReactNode
+  deshabilitado?: boolean
+}) {
+  return (
+    <Hoja
+      abierta={abierta}
+      onCerrar={onCerrar}
+      titulo={titulo}
+      pie={
+        <div className="flex gap-3">
+          <Boton variante="fantasma" className="flex-1 bg-stone-100" onClick={onCerrar}>Cancelar</Boton>
+          <Boton
+            className="flex-1 !bg-rose-600 hover:!bg-rose-700 disabled:!bg-stone-300"
+            disabled={deshabilitado}
+            onClick={() => {
+              onConfirmar()
+              onCerrar()
+            }}
+          >
+            {accion}
+          </Boton>
+        </div>
+      }
+    >
+      <p className="text-[15px] leading-relaxed text-stone-600">{texto}</p>
+      {children && <div className="mt-4">{children}</div>}
+    </Hoja>
   )
 }
